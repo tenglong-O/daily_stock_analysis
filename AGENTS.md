@@ -119,3 +119,33 @@
 python -m py_compile main.py src/*.py data_provider/*.py
 flake8 main.py src/ --max-line-length=120
 ```
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | How to start | Port |
+|---------|-------------|------|
+| Python backend + WebUI | `python3 main.py --webui-only` | 8000 |
+| FastAPI standalone | `uvicorn server:app --reload --host 0.0.0.0 --port 8000` | 8000 |
+| Frontend dev server | `cd apps/dsa-web && npm run dev` | 5173 |
+
+- SQLite database is auto-created at `./data/stock_analysis.db` (no separate service needed).
+- `.env` must exist (copy from `.env.example`). For WebUI access set `WEBUI_ENABLED=true` and `WEBUI_HOST=0.0.0.0`.
+- `python` is not available on this VM; use `python3` everywhere. The CI gate script (`scripts/ci_gate.sh`) uses `python` - run commands manually with `python3` or create a symlink.
+- pip-installed scripts (flake8, black, pytest, etc.) land in `~/.local/bin` which must be on `PATH`. The update script handles this.
+
+### Lint / Test / Build commands
+
+- See `AGENTS.md` section 6 and `scripts/ci_gate.sh` for the standard CI gate.
+- Offline test suite: `python3 -m pytest -m "not network"` (227 tests, no API keys needed).
+- Frontend lint: `cd apps/dsa-web && npx eslint .`
+- Frontend build: `cd apps/dsa-web && npm run build` (outputs to `/workspace/static/`).
+- Full test script: `./test.sh all` (some scenarios require network + AI API keys).
+
+### Non-obvious caveats
+
+- Stock data fetcher tests (`./test.sh code`, `./test.sh yfinance`) are deterministic and offline-safe.
+- AI analysis features require at least one LLM API key (GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY) in `.env`. Without keys, analysis tasks complete with default/empty results (sentiment=50, advice="hold").
+- The frontend must be built (`npm run build` in `apps/dsa-web`) before the backend can serve the WebUI at `/`. The build output goes to `/workspace/static/`.
+- Pydantic v2 deprecation warnings are expected and harmless in the current codebase.
